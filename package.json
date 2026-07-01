@@ -1,0 +1,19 @@
+{
+  "name": "private-anime-platform",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev:client": "npm --workspace client run dev",
+    "dev:server": "npm --workspace server run dev",
+    "build:client": "npm --workspace client run build",
+    "build:server": "npm --workspace server run build",
+    "build": "npm run build:client && npm run build:server"
+  },
+  "dependencies": {
+    "@consumet/extensions": "^1.8.8"
+  }
+}

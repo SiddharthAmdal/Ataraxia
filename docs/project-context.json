@@ -1,0 +1,220 @@
+{
+  "project": {
+    "name": "Private Anime Streaming Platform",
+    "repo_root": "/Users/Siddharth/Documents/HiAnimeClone",
+    "goal": "Build a personal-use anime-style streaming platform with Jellyfin as the media backend and a custom React frontend.",
+    "usage_scope": "Localhost-only, single-user, personal media system."
+  },
+  "timeline": [
+    {
+      "phase": "Initial prototype",
+      "summary": "The project started as a single Vite React app with a stylized anime discovery UI inspired by consumer streaming sites.",
+      "status": "completed"
+    },
+    {
+      "phase": "Visual redesign",
+      "summary": "The original dashboard-like prototype was redesigned into a more premium streaming-home layout with glassy panels, a cinematic hero, and content rails.",
+      "status": "completed"
+    },
+    {
+      "phase": "Architecture shift",
+      "summary": "The app direction changed from a standalone front-end mockup to a production-oriented hybrid architecture using Jellyfin as the streaming backend and a custom UI as the primary product surface.",
+      "status": "completed"
+    },
+    {
+      "phase": "Monorepo scaffolding",
+      "summary": "The repo was restructured into a monorepo with separate client, server, and docs folders.",
+      "status": "completed"
+    },
+    {
+      "phase": "Jellyfin setup",
+      "summary": "A local Jellyfin instance was installed and its startup wizard was completed with safe localhost-first defaults.",
+      "status": "completed"
+    }
+  ],
+  "decisions": {
+    "frontend": {
+      "framework": "React",
+      "bundler": "Vite",
+      "styling": "Tailwind CSS",
+      "routing": "React Router",
+      "http_client": "Axios"
+    },
+    "backend": {
+      "runtime": "Node.js",
+      "framework": "Express",
+      "role": [
+        "Proxy Jellyfin API requests",
+        "Rewrite HLS playlists for reliable browser playback",
+        "Persist watch progress",
+        "Merge metadata from Jikan"
+      ]
+    },
+    "media_backend": {
+      "server": "Jellyfin",
+      "status": "Installed and initialized locally",
+      "streaming_mode": "HLS via Jellyfin APIs"
+    },
+    "metadata": {
+      "provider": "Jikan API",
+      "purpose": [
+        "Anime title enrichment",
+        "Descriptions",
+        "Ratings",
+        "Genres",
+        "Trailer URL when available"
+      ]
+    },
+    "content_model": {
+      "principle": "Content-agnostic system design",
+      "allowed_inputs": [
+        "User-owned media files",
+        "Digitized physical media",
+        "Sample or open-license videos for development",
+        "Authorized media sources controlled by the user"
+      ]
+    }
+  },
+  "repo_structure": {
+    "root": {
+      "path": "/Users/Siddharth/Documents/HiAnimeClone/package.json",
+      "purpose": "Workspace root with npm workspaces and shared scripts."
+    },
+    "client": {
+      "path": "/Users/Siddharth/Documents/HiAnimeClone/client",
+      "purpose": "React + Vite + Tailwind frontend."
+    },
+    "server": {
+      "path": "/Users/Siddharth/Documents/HiAnimeClone/server",
+      "purpose": "Express proxy layer for Jellyfin, metadata enrichment, and watch progress."
+    },
+    "docs": {
+      "path": "/Users/Siddharth/Documents/HiAnimeClone/docs",
+      "purpose": "Architecture notes, API notes, and project context."
+    }
+  },
+  "implemented_frontend": {
+    "routes": [
+      {
+        "path": "/",
+        "page": "LibraryPage",
+        "purpose": "Browse Jellyfin libraries and shows."
+      },
+      {
+        "path": "/shows/:showId",
+        "page": "ShowDetailPage",
+        "purpose": "View series metadata and episode list."
+      },
+      {
+        "path": "/shows/:showId/watch/:episodeId",
+        "page": "PlayerPage",
+        "purpose": "HLS playback, resume playback, and auto-next behavior."
+      }
+    ],
+    "features": [
+      "Library browsing",
+      "Search and filtering inside the current library",
+      "Show detail pages",
+      "Episode list with play entrypoints",
+      "Resume playback",
+      "Continue watching rail",
+      "Responsive dark UI",
+      "Lazy-loaded route chunks",
+      "HLS playback using hls.js when native HLS is unavailable"
+    ],
+    "key_files": [
+      "/Users/Siddharth/Documents/HiAnimeClone/client/src/app/router.tsx",
+      "/Users/Siddharth/Documents/HiAnimeClone/client/src/pages/LibraryPage.tsx",
+      "/Users/Siddharth/Documents/HiAnimeClone/client/src/pages/ShowDetailPage.tsx",
+      "/Users/Siddharth/Documents/HiAnimeClone/client/src/pages/PlayerPage.tsx",
+      "/Users/Siddharth/Documents/HiAnimeClone/client/src/services/mediaApi.ts",
+      "/Users/Siddharth/Documents/HiAnimeClone/client/src/context/ProgressContext.tsx"
+    ]
+  },
+  "implemented_backend": {
+    "api_surface": [
+      "GET /api/libraries",
+      "GET /api/libraries/:libraryId/shows",
+      "GET /api/shows/:showId",
+      "GET /api/playback/:itemId",
+      "GET /api/playback/:itemId/master.m3u8",
+      "GET /api/playback/proxy",
+      "GET /api/continue-watching",
+      "GET /api/progress",
+      "PUT /api/progress/:itemId"
+    ],
+    "backend_features": [
+      "Jellyfin library proxy",
+      "Show and episode mapping",
+      "Jikan metadata enrichment",
+      "HLS master playlist rewriting",
+      "Segment proxying",
+      "Progress persistence in server/data/progress.json",
+      "Health endpoint"
+    ],
+    "key_files": [
+      "/Users/Siddharth/Documents/HiAnimeClone/server/src/index.js",
+      "/Users/Siddharth/Documents/HiAnimeClone/server/src/routes/media.js",
+      "/Users/Siddharth/Documents/HiAnimeClone/server/src/routes/progress.js",
+      "/Users/Siddharth/Documents/HiAnimeClone/server/src/services/jellyfinClient.js",
+      "/Users/Siddharth/Documents/HiAnimeClone/server/src/services/jikanClient.js",
+      "/Users/Siddharth/Documents/HiAnimeClone/server/src/services/progressStore.js"
+    ]
+  },
+  "build_and_verification": {
+    "completed_checks": [
+      "npm install completed successfully at the workspace root",
+      "Client production build passes",
+      "Server source passes node --check",
+      "Root monorepo build passes"
+    ],
+    "known_notes": [
+      "The HLS player dependency was split into its own chunk to keep the main bundle leaner.",
+      "A chunk-size warning was handled by isolating hls.js and raising the warning threshold appropriately."
+    ]
+  },
+  "jellyfin_setup": {
+    "server_url": "http://localhost:8096",
+    "server_name": "Sids-Laptop",
+    "wizard_completed": true,
+    "username": "Siddharth",
+    "password_set": true,
+    "ui_language": "en-US",
+    "metadata_country_code": "US",
+    "preferred_metadata_language": "en",
+    "remote_access_enabled": false,
+    "automatic_port_mapping_enabled": false,
+    "notes": [
+      "The local Jellyfin startup wizard was completed programmatically through Jellyfin's startup API.",
+      "The password is intentionally not stored in this file."
+    ]
+  },
+  "configuration_status": {
+    "client_env_example": "/Users/Siddharth/Documents/HiAnimeClone/client/.env.example",
+    "server_env_example": "/Users/Siddharth/Documents/HiAnimeClone/server/.env.example",
+    "required_server_values_pending": [
+      "JELLYFIN_API_KEY",
+      "JELLYFIN_USER_ID"
+    ],
+    "current_blocker": "The app still needs a real Jellyfin API key and user ID in server/.env before end-to-end library and playback tests can run against the live server."
+  },
+  "documentation_created": [
+    "/Users/Siddharth/Documents/HiAnimeClone/README.md",
+    "/Users/Siddharth/Documents/HiAnimeClone/docs/architecture.md",
+    "/Users/Siddharth/Documents/HiAnimeClone/docs/api.md"
+  ],
+  "recent_user_thoughts": {
+    "sonarr": {
+      "status": "Discussed conceptually",
+      "conclusion": "Sonarr can be useful as a lawful organizer and automation tool for media the user already has rights to use, but Jellyfin remains the actual streaming backend."
+    }
+  },
+  "next_recommended_steps": [
+    "Log into Jellyfin and create an API key.",
+    "Find the Jellyfin user ID for the configured admin user.",
+    "Populate server/.env with JELLYFIN_URL, JELLYFIN_API_KEY, and JELLYFIN_USER_ID.",
+    "Run npm run dev:server and npm run dev:client.",
+    "Add real Jellyfin libraries and verify browsing, detail pages, and HLS playback.",
+    "Tune the UI against real poster and backdrop assets from the live library."
+  ]
+}
