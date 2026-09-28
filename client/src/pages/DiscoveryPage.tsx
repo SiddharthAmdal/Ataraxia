@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/http";
 import { getWatchlist, updateWatchlist } from "../services/mediaApi";
-import type { WatchlistItem, WatchlistStatus } from "../types/media";
+import type { WatchlistStatus } from "../types/media";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface StreamingResult {

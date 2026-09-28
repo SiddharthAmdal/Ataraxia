@@ -68,6 +68,10 @@ export function ProgressProvider({ children }: PropsWithChildren) {
   const upsertProgress = useCallback(async (payload: ProgressPayload) => {
     const optimistic: UserProgress = {
       itemId: payload.itemId,
+      animeId: payload.animeId,
+      title: payload.title,
+      image: payload.image,
+      episodeNumber: payload.episodeNumber,
       positionTicks: payload.positionTicks,
       runtimeTicks: payload.runtimeTicks,
       played: payload.played,

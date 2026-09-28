@@ -96,8 +96,7 @@ export type ShowDetail = {
 export type PlaybackSource = {
   itemId: string;
   mediaSourceId?: string;
-  streamUrl: string;
-  playSessionId: string;
+  streamUrl?: string;
   directStreamUrl?: string;
   embedUrl?: string;
   subtitles?: { url: string; lang: string }[];

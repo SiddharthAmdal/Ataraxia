@@ -38,7 +38,7 @@ progressRouter.put("/progress/:itemId", async (request, response, next) => {
       episodeNumber: request.body.episodeNumber,
       positionTicks,
       runtimeTicks,
-      played: Boolean(request.body.played)
+      played: request.body.played === 'true' || request.body.played === true
     });
 
     response.json(saved);

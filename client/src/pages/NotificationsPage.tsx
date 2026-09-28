@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { getRecentEpisodes, getWatchlist, getUpcomingAnime } from "../services/mediaApi";
 import { LoadingState } from "../components/LoadingState";
 import { motion, AnimatePresence } from "framer-motion";
-import type { WatchlistItem } from "../types/media";
+
 
 interface NotificationItem {
   type: "new_episode" | "new_season" | "upcoming";

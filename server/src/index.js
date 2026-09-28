@@ -1,22 +1,25 @@
 import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
+import path from "node:path";
 import { config } from "./config.js";
 import { mediaRouter } from "./routes/media.js";
 import { progressRouter } from "./routes/progress.js";
 import { streamingRouter } from "./routes/streaming.js";
 import { watchlistRouter } from "./routes/watchlist.js";
+import { authRouter } from "./routes/auth.js";
+import { authenticate } from "./middlewares/authMiddleware.js";
 
 const app = express();
 const instanceId = Date.now().toString();
 
-mongoose.connect("mongodb://127.0.0.1:27017/hianime")
+mongoose.connect(config.mongoUri)
   .then(() => console.log("Connected to MongoDB"))
   .catch(err => console.error("MongoDB connection error:", err));
 
 app.use(
   cors({
-    origin: "*"
+    origin: config.corsOrigins
   })
 );
 app.use(express.json());
@@ -26,6 +29,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Public endpoints
 app.get("/api/health", (_request, response) => {
   response.json({
     ok: true,
@@ -33,11 +37,16 @@ app.get("/api/health", (_request, response) => {
   });
 });
 
-app.use("/api", mediaRouter);
-app.use("/api", progressRouter);
-app.use("/api", streamingRouter);
-app.use("/api", watchlistRouter);
-app.use("/assets", express.static("/Users/Siddharth/.gemini/antigravity/brain/eddc4beb-75ef-4c1f-b93d-33485f1bf3d2"));
+app.use("/api", authRouter);
+
+// Serve assets safely from project root (if they exist)
+app.use("/assets", express.static(path.join(process.cwd(), "public")));
+
+// Protected endpoints
+app.use("/api", authenticate, mediaRouter);
+app.use("/api", authenticate, progressRouter);
+app.use("/api", authenticate, streamingRouter);
+app.use("/api", authenticate, watchlistRouter);
 
 app.use((error, _request, response, _next) => {
   console.error(error);

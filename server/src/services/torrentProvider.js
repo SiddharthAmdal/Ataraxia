@@ -1,6 +1,6 @@
 import { si } from 'nyaapi';
 import WebTorrent from 'webtorrent';
-
+import { config } from '../config.js';
 const client = new WebTorrent();
 
 export class TorrentProvider {
@@ -59,21 +59,28 @@ export class TorrentProvider {
             return true;
         };
 
-        const isValid = (r) => {
-            if (parseInt(r.seeders) < 3) return false; // Reject dead or extremely slow torrents
+        const hardValid = (r) => {
             return isNotBatch(r) && isBrowserCompatible(r) && isEpisodeMatch(r) && isSeasonMatch(r);
         };
 
-        let bestMatch = results.find(r => (r.name.includes('[SubsPlease]') || r.name.includes('[Erai-raws]')) && isValid(r));
-        if (!bestMatch) {
-            bestMatch = results.find(isValid);
+        const validCandidates = results.filter(hardValid);
+
+        if (validCandidates.length === 0) {
+            throw new Error(`No valid torrent candidates found for ${query}`);
         }
-        if (!bestMatch) {
-            bestMatch = results.find(isNotBatch); // fallback to anything not a batch if absolutely needed
-        }
-        if (!bestMatch && results.length > 0) {
-            bestMatch = results[0];
-        }
+
+        // Score candidates: give a massive boost to trusted release groups
+        // so a 10-seeder SubsPlease beats a 50-seeder unknown group.
+        const score = (r) => {
+            let s = parseInt(r.seeders) || 0;
+            if (r.name.includes('[SubsPlease]') || r.name.includes('[Erai-raws]')) {
+                s += 10000;
+            }
+            return s;
+        };
+
+        validCandidates.sort((a, b) => score(b) - score(a));
+        const bestMatch = validCandidates[0];
 
         if (!bestMatch) {
             throw new Error(`No torrent found for ${query}`);
@@ -84,7 +91,7 @@ export class TorrentProvider {
         return {
             sources: [
                 {
-                    url: `http://localhost:4000/api/streaming/torrent/stream?magnet=${encodeURIComponent(bestMatch.magnet)}&torrentUrl=${encodeURIComponent(bestMatch.torrent)}`,
+                    url: `${config.serverPublicUrl}/api/streaming/torrent/stream?magnet=${encodeURIComponent(bestMatch.magnet)}&torrentUrl=${encodeURIComponent(bestMatch.torrent)}`,
                     quality: '1080p',
                     isM3U8: false
                 }

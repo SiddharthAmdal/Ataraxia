@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { api } from "../lib/http";
 import { motion } from "framer-motion";
 
 export function LoginPage() {
@@ -12,14 +13,16 @@ export function LoginPage() {
 
   const from = (location.state as any)?.from?.pathname + (location.state as any)?.from?.search || "/";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple mock logic for "private" platform
-    if (password === import.meta.env.VITE_APP_PASSWORD) {
-      login("mock_token");
-      navigate(from, { replace: true });
-    } else {
-      setError("Invalid access key.");
+    try {
+      const response = await api.post("/auth/login", { password });
+      if (response.data.token) {
+        login(response.data.token);
+        navigate(from, { replace: true });
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || "Invalid access key.");
     }
   };
 

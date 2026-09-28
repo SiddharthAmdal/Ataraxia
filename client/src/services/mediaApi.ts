@@ -1,6 +1,5 @@
 import { api } from "../lib/http";
 import type {
-  ContinueWatchingItem,
   UserProgress,
   SkipTimesResult,
   WatchlistItem,

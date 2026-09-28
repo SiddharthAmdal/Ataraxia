@@ -5,7 +5,7 @@ import axios from "axios";
 import AnitakuProvider from "../services/anitakuProvider.js";
 import { TorrentProvider } from "../services/torrentProvider.js";
 import WebTorrent from "webtorrent";
-
+import { validateExternalMediaUrl } from "../utils/urlValidator.js";
 export const streamingRouter = Router();
 
 const provider = new AnitakuProvider();
@@ -391,9 +391,15 @@ streamingRouter.get("/streaming/watch", async (request, response) => {
 });
 
 streamingRouter.get("/streaming/proxy", async (req, res) => {
-  const { url, referer } = req.query;
+  let { url, referer } = req.query;
   if (!url) {
     return res.status(400).send("URL is required");
+  }
+
+  try {
+    url = validateExternalMediaUrl(String(url));
+  } catch (err) {
+    return res.status(400).send(err.message || "Invalid proxy URL.");
   }
 
   const headers = {

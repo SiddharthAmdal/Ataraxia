@@ -7,3 +7,11 @@ export const api = axios.create({
   baseURL,
   timeout: 15000
 });
+
+api.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem("ataraxia_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});

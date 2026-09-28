@@ -49,11 +49,21 @@ export function InternalPlayer({
         } catch (e) {}
     });
 
+    let authedUrl = url;
+    const token = sessionStorage.getItem("ataraxia_token");
+    if (token) {
+      try {
+        const u = new URL(authedUrl);
+        u.searchParams.set("token", token);
+        authedUrl = u.toString();
+      } catch (e) {}
+    }
+
     const defaultSub = subtitles.find(s => s.lang.toLowerCase().includes('english') || s.lang.toLowerCase().includes('en')) || subtitles[0];
 
     const options: any = {
       container: containerRef.current,
-      url,
+      url: authedUrl,
       type,
       customType: {
         m3u8: function (video: HTMLMediaElement, m3u8Url: string, art: any) {
@@ -63,7 +73,12 @@ export function InternalPlayer({
               debug: false,
               enableWorker: true,
               lowLatencyMode: true,
-              backBufferLength: 90
+              backBufferLength: 90,
+              xhrSetup: function (xhr) {
+                if (token) {
+                  xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+                }
+              }
             });
             art.hls = hls;
             hls.loadSource(m3u8Url);
@@ -159,8 +174,8 @@ export function InternalPlayer({
       
       try {
         // First try the direct style property
-        const directStyle = art.subtitle.style("fontSize");
-        if (directStyle && directStyle.includes("px")) {
+        const directStyle = art.subtitle.style("fontSize") as unknown as string;
+        if (typeof directStyle === "string" && directStyle.includes("px")) {
           currentSize = parseInt(directStyle);
         } else {
           // Fallback to computed style of the subtitle container

@@ -1,3 +1,4 @@
+import type Artplayer from "artplayer";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ErrorState } from "../components/ErrorState";

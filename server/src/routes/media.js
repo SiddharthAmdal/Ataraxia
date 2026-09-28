@@ -5,8 +5,7 @@ import { META } from "@consumet/extensions";
 import AnitakuProvider from "../services/anitakuProvider.js";
 import { Readable } from "node:stream";
 import { config } from "../config.js";
-
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+import { validateExternalMediaUrl } from "../utils/urlValidator.js";
 
 const provider = new AnitakuProvider();
 const hianime = new META.Anilist(provider);
@@ -176,9 +175,12 @@ mediaRouter.get("/shows/:showId", async (request, response) => {
 
 mediaRouter.get("/playback/proxy", async (request, response, next) => {
   try {
-    const target = String(request.query.target || "");
-    if (!target.startsWith("http")) {
-      return response.status(400).json({ message: "Invalid proxy target." });
+    let target = String(request.query.target || "");
+    
+    try {
+      target = validateExternalMediaUrl(target);
+    } catch (err) {
+      return response.status(400).json({ message: err.message || "Invalid proxy target." });
     }
 
     const rawReferer = request.query.referer || "https://anineko.to/";
