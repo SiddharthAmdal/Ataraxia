@@ -1,14 +1,71 @@
 import { Router } from "express";
 import { META, ANIME } from "@consumet/extensions";
 import https from "https";
+import axios from "axios";
 import AnitakuProvider from "../services/anitakuProvider.js";
+import { TorrentProvider } from "../services/torrentProvider.js";
+import WebTorrent from "webtorrent";
 
 export const streamingRouter = Router();
 
-// Use Anitaku (GogoAnime mirror) as the provider for Anilist meta aggregator
-// It's not blocked by ISP and provides English content/subtitles
 const provider = new AnitakuProvider();
+const torrentProvider = new TorrentProvider();
 const hianime = new META.Anilist(provider);
+const torrentClient = new WebTorrent();
+
+torrentClient.on('error', (err) => {
+  console.error('[WebTorrent Client Error]', err.message);
+});
+
+// Keep track of torrents currently being added to prevent duplicate add errors
+const pendingTorrents = new Map();
+
+function getOrAddTorrent(magnet, torrentUrl) {
+  return new Promise((resolve, reject) => {
+    const infoHashMatch = magnet.match(/urn:btih:([a-zA-Z0-9]+)/i);
+    const infoHash = infoHashMatch ? infoHashMatch[1].toLowerCase() : null;
+    console.log(`[Torrent] getOrAddTorrent called for infoHash: ${infoHash}`);
+    
+    let torrent = null;
+    if (infoHash) {
+      torrent = torrentClient.torrents.find(t => t.infoHash === infoHash);
+    }
+    
+    if (torrent) {
+      console.log(`[Torrent] Found existing torrent in client. ready=${torrent.ready}`);
+      if (torrent.ready) return resolve(torrent);
+      torrent.on('ready', () => {
+        console.log(`[Torrent] Existing torrent became ready`);
+        resolve(torrent);
+      });
+      return;
+    }
+
+    if (infoHash && pendingTorrents.has(infoHash)) {
+      console.log(`[Torrent] Joining pending requests for ${infoHash}`);
+      pendingTorrents.get(infoHash).push(resolve);
+      return;
+    }
+
+    if (infoHash) {
+      console.log(`[Torrent] Creating new pending queue for ${infoHash}`);
+      pendingTorrents.set(infoHash, [resolve]);
+    }
+    
+    const target = torrentUrl || magnet;
+    console.log(`[Torrent] Calling torrentClient.add with ${target.substring(0, 50)}...`);
+    torrentClient.add(target, (t) => {
+      console.log(`[Torrent] torrentClient.add callback fired!`);
+      if (infoHash) {
+        const callbacks = pendingTorrents.get(infoHash) || [];
+        pendingTorrents.delete(infoHash);
+        callbacks.forEach(cb => cb(t));
+      } else {
+        resolve(t);
+      }
+    });
+  });
+}
 
 streamingRouter.get("/streaming/trending", async (request, response) => {
   try {
@@ -185,11 +242,44 @@ streamingRouter.get("/streaming/episodes", async (request, response) => {
 
     if (isNumericId) {
       try {
-        console.log(`[Streaming] Fetching Anilist info for numeric ID: ${id}`);
-        info = await hianime.fetchAnimeInfo(id);
-        episodes = info.episodes || [];
+        console.log(`[Streaming] Fetching Anilist info via GraphQL for numeric ID: ${id}`);
+        const query = `
+          query ($id: Int) {
+            Media (id: $id, type: ANIME) {
+              id
+              title { romaji english native }
+              episodes
+              nextAiringEpisode { episode }
+              coverImage { extraLarge large medium }
+            }
+          }
+        `;
+        const { data } = await axios.post('https://graphql.anilist.co', {
+          query,
+          variables: { id: parseInt(id, 10) }
+        });
+        const media = data.data.Media;
+        if (media) {
+          let epCount = media.episodes || 0;
+          if (media.nextAiringEpisode && media.nextAiringEpisode.episode > 1) {
+            epCount = Math.max(epCount, media.nextAiringEpisode.episode - 1);
+          }
+          if (epCount > 0) {
+            episodes = Array.from({ length: epCount }, (_, i) => ({
+              id: `${id}-episode-${i+1}`,
+              number: i+1,
+              title: `Episode ${i+1}`
+            }));
+          }
+          info = {
+            id,
+            title: media.title.english || media.title.romaji || title,
+            image: media.coverImage?.extraLarge || media.coverImage?.large,
+            episodes
+          };
+        }
       } catch (e) {
-        console.warn(`[Streaming] Anilist info fetch failed for id=${id}, trying manual search fallback for title=${title}`);
+        console.warn(`[Streaming] Anilist GraphQL fetch failed for id=${id}, trying manual search fallback for title=${title}`, e.message);
       }
     } else {
       try {
@@ -228,8 +318,9 @@ streamingRouter.get("/streaming/episodes", async (request, response) => {
 
 streamingRouter.get("/streaming/watch", async (request, response) => {
   try {
-    const { episodeId, category = "sub" } = request.query;
-    console.log(`[Streaming] Watch request: episodeId=${episodeId}, category=${category}`);
+    let { episodeId, category = "sub", showName } = request.query;
+    if (showName === "undefined") showName = undefined;
+    console.log(`[Streaming] Watch request: episodeId=${episodeId}, category=${category}, showName=${showName}`);
     
     if (!episodeId) {
       return response.status(400).json({ message: "Episode ID is required" });
@@ -237,19 +328,42 @@ streamingRouter.get("/streaming/watch", async (request, response) => {
 
     let sources = null;
     try {
-      // Try fetching via meta-aggregator first
-      sources = await hianime.fetchEpisodeSources(episodeId, category);
+      console.log(`[Streaming] Trying torrent provider first...`);
+      if (!showName) {
+        let baseName = episodeId.replace(/-episode-\d+$/, '').replace(/-/g, ' ').replace(/\btv\b/gi, '').trim();
+        if (/^\d+$/.test(baseName)) {
+            try {
+                const query = `query ($id: Int) { Media (id: $id, type: ANIME) { title { english romaji } } }`;
+                const { data } = await axios.post('https://graphql.anilist.co', { query, variables: { id: parseInt(baseName, 10) } });
+                const media = data.data.Media;
+                if (media) {
+                    showName = media.title.english || media.title.romaji;
+                }
+            } catch (e) {
+                console.warn(`[Streaming] Failed to resolve Anilist ID ${baseName} to title:`, e.message);
+            }
+        }
+      }
+      sources = await torrentProvider.fetchEpisodeSources(episodeId, showName);
     } catch (e) {
-      console.warn(`[Streaming] Anilist source fetch failed for episodeId=${episodeId}`);
+      console.warn(`[Streaming] Torrent source fetch failed:`, e.message);
     }
 
     if (!sources || !sources.sources || sources.sources.length === 0) {
-      console.warn(`[Streaming] Meta-aggregator returned no sources for episodeId=${episodeId}, trying direct provider`);
-      // Try direct provider (Anitaku)
+      console.warn(`[Streaming] Torrent provider returned no sources for episodeId=${episodeId}, trying direct provider`);
       try {
         sources = await provider.fetchEpisodeSources(episodeId);
       } catch (e2) {
-        console.error(`[Streaming] Direct source fetch failed:`, e2);
+        console.warn(`[Streaming] Direct source fetch failed:`, e2.message);
+      }
+      
+      if (!sources || !sources.sources || sources.sources.length === 0) {
+        console.log(`[Streaming] Direct source empty, falling back to meta-aggregator...`);
+        try {
+          sources = await hianime.fetchEpisodeSources(episodeId, category);
+        } catch (e3) {
+          console.error(`[Streaming] Meta-aggregator fallback also failed:`, e3.message);
+        }
       }
     }
     
@@ -324,3 +438,70 @@ streamingRouter.get("/streaming/proxy", async (req, res) => {
     }
   }
 });
+
+streamingRouter.get("/streaming/torrent/stream", async (req, res) => {
+  const magnet = req.query.magnet;
+  const torrentUrl = req.query.torrentUrl;
+  if (!magnet) return res.status(400).send("Magnet link required");
+
+  console.log(`[Torrent] Requesting stream for: ${magnet.substring(0, 40)}...`);
+  try {
+    const torrent = await getOrAddTorrent(magnet, torrentUrl);
+    handleTorrentStream(torrent, req, res);
+  } catch (err) {
+    console.error(`[Torrent] Failed to add torrent:`, err.message);
+    res.status(500).send("Failed to stream torrent");
+  }
+});
+
+function handleTorrentStream(torrent, req, res) {
+  if (!torrent.files || torrent.files.length === 0) {
+    console.error("[Torrent] No files found in torrent!");
+    return res.status(500).send("No files in torrent");
+  }
+
+  // Find largest file (the video)
+  const file = torrent.files.reduce((a, b) => (a.length > b.length ? a : b));
+
+  const contentType = file.name.endsWith('.mkv') ? 'video/webm' : 'video/mp4';
+
+  const range = req.headers.range;
+  if (!range) {
+    res.writeHead(200, {
+      "Content-Length": file.length,
+      "Content-Type": contentType,
+    });
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+    file.createReadStream().pipe(res);
+    return;
+  }
+
+  const positions = range.replace(/bytes=/, "").split("-");
+  const start = parseInt(positions[0], 10);
+  const total = file.length;
+  const end = positions[1] ? parseInt(positions[1], 10) : total - 1;
+  const chunksize = end - start + 1;
+
+  res.writeHead(206, {
+    "Content-Range": `bytes ${start}-${end}/${total}`,
+    "Accept-Ranges": "bytes",
+    "Content-Length": chunksize,
+    "Content-Type": contentType,
+  });
+
+  if (req.method === 'HEAD') {
+    res.end();
+    return;
+  }
+
+  const stream = file.createReadStream({ start, end });
+  stream.pipe(res);
+  
+  stream.on('error', (err) => {
+    console.error("[Torrent] Stream error:", err);
+  });
+}
+

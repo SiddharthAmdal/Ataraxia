@@ -93,13 +93,14 @@ export function PlayerPage() {
           const baseUrl = api.defaults.baseURL || 'http://localhost:4000/api';
           const proxyBase = baseUrl.startsWith('http') ? baseUrl : `${window.location.origin}${baseUrl}`;
           
+          const isTorrent = sourceUrl.includes('/streaming/torrent/stream');
           setPlaybackSource({ 
             itemId: episodeId,
             streamUrl: isM3U8 
               ? `${proxyBase}/playback/proxy?target=${encodeURIComponent(sourceUrl)}&referer=${encodeURIComponent(referer)}`
               : undefined,
             directStreamUrl: !isM3U8
-              ? `${proxyBase}/streaming/proxy?url=${encodeURIComponent(sourceUrl)}&referer=${encodeURIComponent(referer)}`
+              ? (isTorrent ? sourceUrl : `${proxyBase}/streaming/proxy?url=${encodeURIComponent(sourceUrl)}&referer=${encodeURIComponent(referer)}`)
               : undefined,
             subtitles: watchResponse.data.subtitles
           } as PlaybackSource);
@@ -136,8 +137,8 @@ export function PlayerPage() {
           }
         } else {
           const [detailResponse, playbackResponse] = await Promise.all([
-            getShowDetail(showId),
-            getPlaybackSource(episodeId, subOrDub)
+            getShowDetail(showId, searchParams.get("title") || undefined),
+            getPlaybackSource(episodeId, subOrDub, searchParams.get("title") || undefined)
           ]);
           setDetail(detailResponse);
           setPlaybackSource(playbackResponse);

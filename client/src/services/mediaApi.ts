@@ -38,13 +38,15 @@ export async function getUpcomingAnime() {
   return data.results || [];
 }
 
-export async function getShowDetail(showId: string) {
-  const { data } = await api.get<any>(`/shows/${encodeURIComponent(showId)}`);
+export async function getShowDetail(showId: string, title?: string) {
+  const query = title ? `?title=${encodeURIComponent(title)}` : "";
+  const { data } = await api.get<any>(`/shows/${encodeURIComponent(showId)}${query}`);
   return data;
 }
 
-export async function getPlaybackSource(episodeId: string, category = "sub") {
-  const { data } = await api.get<any>(`/streaming/watch?episodeId=${encodeURIComponent(episodeId)}&category=${category}`);
+export async function getPlaybackSource(episodeId: string, category = "sub", title?: string) {
+  const query = title ? `&showName=${encodeURIComponent(title)}` : "";
+  const { data } = await api.get<any>(`/streaming/watch?episodeId=${encodeURIComponent(episodeId)}&category=${category}${query}`);
   const referer = data.embedUrl || data.headers?.Referer || "";
   return {
     itemId: episodeId,

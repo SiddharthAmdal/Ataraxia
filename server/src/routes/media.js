@@ -99,6 +99,23 @@ mediaRouter.get("/shows/:showId", async (request, response) => {
         }
     }
 
+    // Generate dummy episodes if still empty, so torrent provider can be used
+    if (info && (!info.episodes || info.episodes.length === 0)) {
+        const maxEp = info.totalEpisodes || (info.nextAiringEpisode ? info.nextAiringEpisode.episode - 1 : 0);
+        if (maxEp > 0) {
+            info.episodes = [];
+            for (let i = 1; i <= maxEp; i++) {
+                // we'll pass the title as ID so the torrent provider can parse it, or we just pass the anime title + episode
+                const safeTitle = (typeof info.title === "string" ? info.title : info.title?.english || info.title?.romaji || "Anime").replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "-");
+                info.episodes.push({
+                    id: `${safeTitle}-episode-${i}`,
+                    number: i,
+                    title: `Episode ${i}`
+                });
+            }
+        }
+    }
+
     if (!info || (!info.title && !info.id)) {
       return response.status(404).json({ message: "Anime details not found." });
     }

@@ -1,11 +1,10 @@
-import { si } from "nyaapi";
+import { si } from 'nyaapi';
 async function test() {
   try {
-    const results = await si.search("Dragon Ball Super", 20, { category: "1_2" });
-    console.log("Success! Found:", results.length);
-    console.log(results[0]);
-  } catch (error) {
-    console.error("Error:", error);
+    const results = await si.search('One Piece 1000', 1, { category: '1_2', filter: 2 }); // 1_2 is Anime - English-translated, filter 2 is Trusted only
+    console.log(results[0]?.magnet || "No results");
+  } catch (err) {
+    console.error(err);
   }
 }
 test();

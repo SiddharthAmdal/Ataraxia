@@ -15,7 +15,7 @@ export function LoginPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Simple mock logic for "private" platform
-    if (password === "ataraxia") {
+    if (password === import.meta.env.VITE_APP_PASSWORD) {
       login("mock_token");
       navigate(from, { replace: true });
     } else {

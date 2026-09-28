@@ -29,7 +29,7 @@ export function ShowDetailPage() {
         if (watchItem) setWatchlistStatus(watchItem.status);
 
         const showTitle = watchItem?.title || titleFromQuery || "";
-        const showRes = await getShowDetail(`${showId}${showTitle ? `?title=${encodeURIComponent(showTitle)}` : ""}`);
+        const showRes = await getShowDetail(showId, showTitle);
         
         setDetail(showRes);
       } catch {

@@ -51,25 +51,25 @@ export function InternalPlayer({
 
     const defaultSub = subtitles.find(s => s.lang.toLowerCase().includes('english') || s.lang.toLowerCase().includes('en')) || subtitles[0];
 
-    const art = new Artplayer({
+    const options: any = {
       container: containerRef.current,
       url,
       type,
       customType: {
-        m3u8: function (video, m3u8Url, art) {
+        m3u8: function (video: HTMLMediaElement, m3u8Url: string, art: any) {
           if (Hls.isSupported()) {
-            if ((art as any).hls) (art as any).hls.destroy();
+            if (art.hls) art.hls.destroy();
             const hls = new Hls({
               debug: false,
               enableWorker: true,
               lowLatencyMode: true,
               backBufferLength: 90
             });
-            (art as any).hls = hls;
+            art.hls = hls;
             hls.loadSource(m3u8Url);
             hls.attachMedia(video);
             
-            hls.on(Hls.Events.ERROR, (_, data) => {
+            hls.on(Hls.Events.ERROR, (_: any, data: any) => {
               if (data.fatal) {
                 console.error("[Player] HLS Fatal Error:", data.type, data.details);
                 if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
@@ -86,13 +86,12 @@ export function InternalPlayer({
       autoplay: true,
       pip: true,
       autoSize: true,
-      screenshot: false, // REMOVED SCREENSHOT BUTTON
+      screenshot: false,
       setting: true,
       playbackRate: true,
       aspectRatio: true,
       fullscreen: true,
       fullscreenWeb: true,
-      subtitleOffset: true,
       miniProgressBar: true,
       mutex: true,
       backdrop: true,
@@ -102,8 +101,13 @@ export function InternalPlayer({
       hotkey: true,
       lock: true,
       fastForward: true,
-      autoHide: 5000, // Hide controls after 5 seconds of inactivity
-      subtitle: defaultSub ? {
+      autoHide: 5000,
+      settings: [],
+    };
+
+    if (defaultSub) {
+      options.subtitleOffset = true;
+      options.subtitle = {
         url: defaultSub.url,
         type: defaultSub.url.endsWith('vtt') ? 'vtt' : 'srt',
         style: { 
@@ -114,27 +118,29 @@ export function InternalPlayer({
         },
         encoding: 'utf-8',
         escape: false,
-      } : undefined,
-      settings: [
-        {
-          html: 'Subtitle Size',
-          width: 250,
-          tooltip: '24px',
-          selector: [
-            { html: '16px', value: '16px' },
-            { html: '20px', value: '20px' },
-            { default: true, html: '24px', value: '24px' },
-            { html: '28px', value: '28px' },
-            { html: '32px', value: '32px' },
-            { html: '40px', value: '40px' },
-          ],
-          onSelect: function (item) {
+      };
+      options.settings.push({
+        html: 'Subtitle Size',
+        width: 250,
+        tooltip: '24px',
+        selector: [
+          { html: '16px', value: '16px' },
+          { html: '20px', value: '20px' },
+          { default: true, html: '24px', value: '24px' },
+          { html: '28px', value: '28px' },
+          { html: '32px', value: '32px' },
+          { html: '40px', value: '40px' },
+        ],
+        onSelect: function (item: any) {
+          if (art && art.subtitle) {
             art.subtitle.style('fontSize', item.value);
-            return item.html;
-          },
+          }
+          return item.html;
         },
-      ],
-    });
+      });
+    }
+
+    const art = new Artplayer(options);
 
     artRef.current = art;
 
@@ -171,12 +177,16 @@ export function InternalPlayer({
       if (e.key === "+" || e.key === "=") {
         e.preventDefault();
         const newSize = Math.min(maxSize, currentSize + step);
-        art.subtitle.style("fontSize", `${newSize}px`);
+        if (art.subtitle) {
+          art.subtitle.style("fontSize", `${newSize}px`);
+        }
         art.notice.show = `Subtitle Size: ${newSize}px`;
       } else if (e.key === "-") {
         e.preventDefault();
         const newSize = Math.max(minSize, currentSize - step);
-        art.subtitle.style("fontSize", `${newSize}px`);
+        if (art.subtitle) {
+          art.subtitle.style("fontSize", `${newSize}px`);
+        }
         art.notice.show = `Subtitle Size: ${newSize}px`;
       }
     };
